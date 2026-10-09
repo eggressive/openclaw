@@ -1,0 +1,126 @@
+title = "gitleaks config"
+
+[extend]
+# Start from gitleaks' default rule set
+useDefault = true
+
+[allowlist]
+  description = "Known-safe patterns: test fixtures, i18n files, docs placeholders, OAuth client IDs"
+  paths = [
+    # i18n translation caches contain source segment IDs like "modelProviders.apiKey.label"
+    '''ui/src/i18n/\.i18n/''',
+    # Test fixtures with synthetic/placeholder secrets for redaction testing
+    '''src/logging/redact-.*-fixture\.json$''',
+    '''src/logging/redact.*\.test\.ts$''',
+    '''src/agents/transcript-redact\.test\.ts$''',
+    '''src/agents/payload-redaction\.test\.ts$''',
+    '''config/test-mock-exports-baseline\.txt$''',
+    # Test files with synthetic private keys / tokens
+    '''.*\.test\.ts$''',
+    '''.*\.test\.tsx$''',
+    '''.*test-support\.ts$''',
+    '''.*test-utils\.ts$''',
+    '''.*test-helpers\.ts$''',
+    '''.*Test\.kt$''',
+    '''.*Tests\.swift$''',
+    '''test/scripts/detect-private-keys\.test\.ts$''',
+    # CI qualification / baseline data
+    '''scripts/lib/ci-test-native-bun-qualification\.json$''',
+    '''scripts/lib/update-compat-chunks\.mts$''',
+    # ONNX export script with model SHA-256 checksums (not secrets)
+    '''extensions/onnx/scripts/export-gliclass-instruct\.py$''',
+    # Docs with placeholder tokens (YOUR_TOKEN, <token>, example IDs)
+    '''docs/gateway/openai-http-api\.md$''',
+    '''docs/gateway/openresponses-http-api\.md$''',
+    '''docs/providers/litellm\.md$''',
+    '''docs/channels/access-groups\.md$''',
+    '''docs/channels/discord/access-control\.md$''',
+    '''docs/channels/discord/voice-follow\.md$''',
+    '''docs/channels/pairing\.md$''',
+    '''docs/gateway/config-channels/commands\.md$''',
+    '''docs/gateway/config-agents/sessions\.md$''',
+    '''docs/gateway/doctor/config-migrations\.md$''',
+    '''docs/plugins/team-reports\.md$''',
+    # Test fixtures / QA scenarios with synthetic values
+    '''extensions/nostr/src/test-fixtures\.ts$''',
+    '''extensions/qa-lab/src/live-transports/matrix/scenarios/scenario-contract\.ts$''',
+    '''qa/scenarios/channels/matrix-e2ee-dm-sas-verification\.yaml$''',
+    '''test/e2e/qa-lab/runtime/qa-otel-smoke-runtime\.ts$''',
+    '''ui/src/test-helpers/app-sidebar-cases/child-session-errors\.ts$''',
+    # Non-secret identifiers that match generic-api-key pattern
+    '''ui/src/app/web-push\.runtime\.ts$''',
+    '''src/infra/push-web-preferences\.ts$''',
+    '''src/commands/doctor-session-incognito-key-repair-state\.ts$''',
+    # Rust idempotency test keys
+    '''apps/linux/src-tauri/src/gateway_ws\.rs$''',
+  ]
+  regexes = [
+    # Placeholder tokens in docs
+    '''YOUR_API_KEY''',
+    '''YOUR_TOKEN''',
+    '''YOUR_GITHUB_TOKEN''',
+    # Synthetic test tokens (redaction test fixtures)
+    '''sk_live_abcdefghij12345''',
+    '''sk_test_12345678901234567890''',
+    '''sk_test_fixtureOnly1234567890''',
+    '''rk_live_fixtureOnly1234567890''',
+    '''AKIAABCDEFGHIJKLMNOP''',
+    '''ASIAABCDEFGHIJKLMNOP''',
+    '''glpat-abcdefghijklmnopqrst''',
+    '''glrt-abcdefghijklmnopqrst''',
+    # Example Discord snowflake IDs in docs
+    '''123456789012345678''',
+    '''987654321012345678''',
+    '''456789012345678901''',
+    # Non-secret identifiers
+    '''synthetic/plain''',
+    '''0123456789abcdef''',
+    '''idempotency-1''',
+    '''e2ee-verification-dm''',
+    '''reserved-incognito-v1''',
+    '''notifications\.web\.v1''',
+    '''sk-1234567890abcdef''',
+    # Public OAuth 2.0 client IDs (not secrets — identify the app to the provider)
+    '''Ov23liUjOXHi28w2fDlH''',
+    '''b1a00492-073a-47ea-816f-4c329264a828''',
+    # Type/interface names that gitleaks misidentifies
+    '''MattermostWebSocketFactory''',
+    '''DiscordVoiceAllowedChannelConfig''',
+    '''OPENCLAW_QA_DISCORD_KEEP_THREADS''',
+    '''0123456789abcdef0123456789abcdef0123456789abcdef0123456789ab''',
+  ]
+  stopwords = [
+    "abcdefghij",
+    "fixtureonly",
+    "your_api_key",
+    "your_token",
+    "your_github_token",
+    "example",
+    "placeholder",
+    "fake-key",
+    "fake_key",
+    "dummy",
+    "sample",
+    "test-only",
+    "testonly",
+    "not-a-real",
+    "notareal",
+  ]
+
+# --- Custom rules for this fork ---
+
+# OpenClaw config file with embedded secrets
+[[rules]]
+  id = "openclaw-config-secret"
+  description = "Secret in OpenClaw config JSON"
+  path = '''(?i)openclaw\.json$'''
+  regex = '''(?i)"(apiKey|api_key|botToken|token|secret|password)"\s*:\s*"([^"]{20,})"'''
+  tags = ["openclaw", "config"]
+  [[rules.allowlists]]
+    regexes = [
+      '''\$\{''',
+      '''YOUR_''',
+      '''REDACTED''',
+      '''example''',
+      '''placeholder''',
+    ]
